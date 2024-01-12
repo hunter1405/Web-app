@@ -57,9 +57,18 @@ if st.button('Generate Forecast'):
         period = st.slider('Seasonal Period', 2, 12, 4)
         forecast = holt_winters(series, period)
     
-    # Plot the forecast and actual prices
+        # Plot the forecast and actual prices
     plt.figure(figsize=(10, 4))
-    plt.plot(series, label='Actual Price')
-    plt.plot(forecast, label='Forecast')
+    plt.plot(series.index, series, label='Actual Price')
+    plt.plot(forecast.index, forecast, label='Forecast')
+    
+    # Format the dates on the x-axis
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
+    
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.title('Stock Price Forecast')
     plt.legend()
+    plt.xticks(rotation=45)  # Rotate dates for better readability
     st.pyplot(plt)
