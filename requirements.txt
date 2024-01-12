@@ -1,6 +1,6 @@
 streamlit
-pandas
 yfinance
-statsmodels
-matplotlib
 plotly
+pandas
+matplotlib
+prophet
