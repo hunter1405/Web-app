@@ -4,6 +4,7 @@ import yfinance as yf
 from datetime import datetime
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 # Function to fetch stock data using yfinance
 def fetch_stock_data(stock_code, period='1d'):
@@ -57,7 +58,7 @@ if st.button('Generate Forecast'):
         period = st.slider('Seasonal Period', 2, 12, 4)
         forecast = holt_winters(series, period)
     
-        # Plot the forecast and actual prices
+     # Inside your Streamlit app, right before plotting:
     plt.figure(figsize=(10, 4))
     plt.plot(series.index, series, label='Actual Price')
     plt.plot(forecast.index, forecast, label='Forecast')
@@ -66,9 +67,9 @@ if st.button('Generate Forecast'):
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
     plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
     
+    plt.xticks(rotation=45)  # Rotate dates for better readability
     plt.xlabel('Date')
     plt.ylabel('Price')
     plt.title('Stock Price Forecast')
     plt.legend()
-    plt.xticks(rotation=45)  # Rotate dates for better readability
     st.pyplot(plt)
