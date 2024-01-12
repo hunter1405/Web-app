@@ -32,7 +32,7 @@ def plot_raw_data():
     st.plotly_chart(fig)
 
 # Select stock
-stocks = ('GOOG', 'AAPL', 'MSFT', 'GME')
+stocks = ('GOOG', 'AAPL', 'MSFT', 'AMZN', 'META')
 selected_stock = st.selectbox('Select dataset for prediction', stocks)
 
 # Select years of prediction
