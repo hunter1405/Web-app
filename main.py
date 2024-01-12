@@ -15,16 +15,16 @@ def moving_average(data, window):
     return data['Close'].rolling(window).mean()
 
 # Define the Exponential Smoothing function
-def exponential_smoothing(data, alpha):
-    model = SimpleExpSmoothing(data['Close'])
-    model_fit = model.fit(smoothing_level=alpha)
-    return model_fit.fittedvalues
+def exponential_smoothing(series, alpha):
+    model = SimpleExpSmoothing(series)
+    fitted_model = model.fit(smoothing_level=alpha)
+    return fitted_model.fittedvalues
 
 # Define the Holt-Winters function
-def holt_winters(data, period):
-    model = ExponentialSmoothing(data['Close'], trend='add', seasonal='add', seasonal_periods=period)
-    model_fit = model.fit()
-    return model_fit.fittedvalues
+def holt_winters(series, period):
+    model = ExponentialSmoothing(series, trend='add', seasonal='add', seasonal_periods=period)
+    fitted_model = model.fit()
+    return fitted_model.fittedvalues
 
 # Streamlit UI
 st.title('Stock Forecasting Application')
@@ -38,27 +38,28 @@ model_choice = st.selectbox('Choose the Forecasting Model', ['Moving Average', '
 # Dropdown for choosing the time frame for stock data
 time_frame = st.selectbox('Choose Time Frame for Stock Data', ['1d', '1wk', '1mo'])
 
-# Number input for model parameters
-window = st.slider('Moving Average Window', 3, 30, 3) if model_choice == 'Moving Average' else None
-alpha = st.slider('Alpha', 0.01, 1.0, 0.1) if model_choice == 'Exponential Smoothing' else None
-period = st.slider('Seasonal Period', 2, 12, 4) if model_choice == 'Holt-Winters' else None
-
-# Button to generate forecast
+# Generate forecast
 if st.button('Generate Forecast'):
     # Fetch stock data
     data = fetch_stock_data(stock_code, period=time_frame)
 
+    # Ensure we are passing a Series to the forecasting functions
+    series = data['Close']
+
     # Generate forecast
     if model_choice == 'Moving Average':
+        window = st.slider('Moving Average Window', 3, 30, 3)
         forecast = moving_average(data, window)
     elif model_choice == 'Exponential Smoothing':
-        forecast = exponential_smoothing(data, alpha)
+        alpha = st.slider('Alpha', 0.01, 1.0, 0.1)
+        forecast = exponential_smoothing(series, alpha)
     else:  # Holt-Winters
-        forecast = holt_winters(data, period)
+        period = st.slider('Seasonal Period', 2, 12, 4)
+        forecast = holt_winters(series, period)
     
     # Plot the forecast and actual prices
     plt.figure(figsize=(10, 4))
-    plt.plot(data['Close'], label='Actual Price')
+    plt.plot(series, label='Actual Price')
     plt.plot(forecast, label='Forecast')
     plt.legend()
     st.pyplot(plt)
