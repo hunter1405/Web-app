@@ -1,75 +1,94 @@
+# pip install streamlit yfinance plotly pandas matplotlib
 import streamlit as st
-import pandas as pd
+from datetime import date
+
 import yfinance as yf
-from datetime import datetime
-from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
+import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+from plotly import graph_objs as go
 
-# Function to fetch stock data using yfinance
-def fetch_stock_data(stock_code, period='1d'):
-    stock_data = yf.Ticker(stock_code)
-    return stock_data.history(period=period)
+# If using Prophet, uncomment the following lines:
+# from fbprophet import Prophet
+# from fbprophet.plot import plot_plotly
 
-# Define the Moving Average function
-def moving_average(data, window):
-    return data['Close'].rolling(window).mean()
+START = "2015-01-01"
+TODAY = date.today().strftime("%Y-%m-%d")
 
-# Define the Exponential Smoothing function
-def exponential_smoothing(series, alpha):
-    model = SimpleExpSmoothing(series)
-    fitted_model = model.fit(smoothing_level=alpha)
-    return fitted_model.fittedvalues
+st.title('Stock Forecast App')
 
-# Define the Holt-Winters function
-def holt_winters(series, period):
-    model = ExponentialSmoothing(series, trend='add', seasonal='add', seasonal_periods=period)
-    fitted_model = model.fit()
-    return fitted_model.fittedvalues
+# Function to load data
+@st.cache
+def load_data(ticker):
+    data = yf.download(ticker, START, TODAY)
+    data.reset_index(inplace=True)
+    return data
 
-# Streamlit UI
-st.title('Stock Forecasting Application')
+# Function to plot raw data
+def plot_raw_data():
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data['Date'], y=data['Open'], name="stock_open"))
+    fig.add_trace(go.Scatter(x=data['Date'], y=data['Close'], name="stock_close"))
+    fig.layout.update(title_text='Time Series data with Rangeslider', xaxis_rangeslider_visible=True)
+    st.plotly_chart(fig)
 
-# Input for stock ticker symbol
-stock_code = st.text_input('Enter Stock Ticker Symbol', 'AAPL')
+# Select stock
+stocks = ('GOOG', 'AAPL', 'MSFT', 'GME')
+selected_stock = st.selectbox('Select dataset for prediction', stocks)
 
-# Dropdown for choosing the forecasting model
-model_choice = st.selectbox('Choose the Forecasting Model', ['Moving Average', 'Exponential Smoothing', 'Holt-Winters'])
+# Select years of prediction
+n_years = st.slider('Years of prediction:', 1, 4)
+period = n_years * 365
 
-# Dropdown for choosing the time frame for stock data
-time_frame = st.selectbox('Choose Time Frame for Stock Data', ['1d', '1wk', '1mo'])
+# Load data
+data_load_state = st.text('Loading data...')
+data = load_data(selected_stock)
+data_load_state.text('Loading data... done!')
 
-# Generate forecast
-if st.button('Generate Forecast'):
-    # Fetch stock data
-    data = fetch_stock_data(stock_code, period=time_frame)
+st.subheader('Raw data')
+st.write(data.tail())
 
-    # Ensure we are passing a Series to the forecasting functions
-    series = data['Close']
+plot_raw_data()
 
-    # Generate forecast
-    if model_choice == 'Moving Average':
-        window = st.slider('Moving Average Window', 3, 30, 3)
-        forecast = moving_average(data, window)
-    elif model_choice == 'Exponential Smoothing':
-        alpha = st.slider('Alpha', 0.01, 1.0, 0.1)
-        forecast = exponential_smoothing(series, alpha)
-    else:  # Holt-Winters
-        period = st.slider('Seasonal Period', 2, 12, 4)
-        forecast = holt_winters(series, period)
+# Select Forecasting Model
+model = st.selectbox('Select Forecasting Model', ['Prophet', 'Moving Average'])
+
+# Forecasting with the selected model
+if model == 'Prophet':
+    # Prophet model implementation
+    df_train = data[['Date', 'Close']]
+    df_train = df_train.rename(columns={"Date": "ds", "Close": "y"})
+
+    m = Prophet()
+    m.fit(df_train)
+    future = m.make_future_dataframe(periods=period)
+    forecast = m.predict(future)
+
+    # Show and plot forecast
+    st.subheader('Forecast data')
+    st.write(forecast.tail())
     
-     # Inside your Streamlit app, right before plotting:
+    st.write(f'Forecast plot for {n_years} years')
+    fig1 = plot_plotly(m, forecast)
+    st.plotly_chart(fig1)
+
+    st.write("Forecast components")
+    fig2 = m.plot_components(forecast)
+    st.write(fig2)
+
+elif model == 'Moving Average':
+    # Moving Average model implementation
+    window = st.slider('Select Moving Average Window', 15, 90, 30)
+    df_train = data[['Date', 'Close']].set_index('Date')
+    df_train['Moving Average'] = df_train['Close'].rolling(window=window).mean()
+
+    st.subheader('Moving Average Forecast')
+    st.write(df_train.tail())
+
+    st.write(f'Moving Average plot for {window} day window')
     plt.figure(figsize=(10, 4))
-    plt.plot(series.index, series, label='Actual Price')
-    plt.plot(forecast.index, forecast, label='Forecast')
-    
-    # Format the dates on the x-axis
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
-    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))
-    
-    plt.xticks(rotation=45)  # Rotate dates for better readability
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.title('Stock Price Forecast')
+    plt.plot(df_train['Close'], label='Actual Price')
+    plt.plot(df_train['Moving Average'], label='Moving Average')
     plt.legend()
     st.pyplot(plt)
+
+# Add other models as elif statements similar to above with their respective implementations.
