@@ -3,4 +3,6 @@ yfinance
 plotly
 pandas
 matplotlib
-prophet
+statsmodels
+
+
